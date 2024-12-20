@@ -1,7 +1,9 @@
 import React, { useReducer, createContext, useContext } from "react";
+import PropTypes from "prop-types";
 import UserInput from "./UserInput";
 import ChatsAndReply from "./ChatsAndReply";
 import Gemni from "../../Model/Gemni";
+import Cards from "./Cards";
 
 const createMessage = (content, isAi = false) => ({
   id: Date.now(),
@@ -35,6 +37,34 @@ export const ChatProvider = ({ children }) => {
 
   const [state, dispatch] = useReducer(chatReducer, initialState);
 
+  const formatResponse = (text) => {
+    // Replace headers
+    let formatted = text.replace(
+      /^##\s+(.+)$/gm,
+      '<h2 class="text-2xl font-bold my-4">$1</h2>'
+    );
+
+    // Replace bold text
+    formatted = formatted.replace(
+      /\*\*(.+?)\*\*/g,
+      '<span class="font-semibold">$1</span>'
+    );
+
+    // Convert lists to proper HTML with bullets
+    formatted = formatted.replace(
+      /^\*\s+(.+)$/gm,
+      '<li class="ml-6 list-disc">$1</li>'
+    );
+
+    // Wrap lists in ul tags
+    formatted = formatted.replace(
+      /((?:<li[^>]*>.*<\/li>\s*)+)/g,
+      '<ul class="my-2">$1</ul>'
+    );
+
+    return formatted;
+  };
+
   const addMessage = async (content) => {
     console.log("Adding message:", content);
 
@@ -45,8 +75,9 @@ export const ChatProvider = ({ children }) => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 5000));
       // const res = await Gemni(content);
-      const res = "vanakam da mapla";
-      const aiResponse = createMessage(res, true);
+      const res = "Vanakam da mapla";
+      const formattedResponse = formatResponse(res);
+      const aiResponse = createMessage(formattedResponse, true);
       dispatch({ type: "ADD_MESSAGE", payload: aiResponse });
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
@@ -66,6 +97,10 @@ export const ChatProvider = ({ children }) => {
   );
 };
 
+ChatProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (context === undefined) {
@@ -74,31 +109,34 @@ export const useChat = () => {
   return context;
 };
 
-const ChatApp = () => {
-  const { isLoading } = useChat();
+const ChatContent = () => {
+  const { isLoading, messages } = useChat();
 
   return (
-    <ChatProvider>
-      {/* RESPONSE */}
-      <div className="h-4/6 w-full px-[2rem] flex flex-col gap-[1rem]">
-        <h1 className="font-medium self-center">
-          It's <span className="text-[#FF9595]"> great</span> to see you 👋🏻
-        </h1>
+    <>
+      <div className="h-[calc(100vh-4rem)] md:h-4/6 w-full px-4 md:px-[2rem] flex flex-col gap-[1rem]">
+        {messages.length === 0 && (
+          <div className="flex items-center flex-col justify-center h-full">
+            <h1 className="font-medium self-center text-lg md:text-xl pt-4">
+              It&apos;s <span className="text-[#FF9595]">great</span> to see you
+              👋🏻
+            </h1>
+            <Cards />
+          </div>
+        )}
         <ChatsAndReply />
       </div>
-      {/* USER PROMPT */}
-      <div className="h-[3rem] w-[100%] flex justify-center items-center mb-[1rem] px-[2rem]">
+      <div className="fixed bottom-0 left-0 right-0 h-[4rem] md:static md:h-[3rem] w-full flex justify-center items-center mb-0 md:mb-[1rem] px-4 md:px-[2rem]">
         <UserInput />
       </div>
-      {/* <div className="h-screen bg-zinc-900 text-white p-4 flex flex-col">
-        <div className="flex-1 overflow-hidden">
-          <ChatsAndReply />
-        </div>
-        <div className="mt-4">
-          <UserInput />
-          {isLoading && <p className="text-gray-400 mt-2">AI is typing...</p>}
-        </div>
-      </div> */}
+    </>
+  );
+};
+
+const ChatApp = () => {
+  return (
+    <ChatProvider>
+      <ChatContent />
     </ChatProvider>
   );
 };
